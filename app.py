@@ -16,11 +16,7 @@ import base64
 import concurrent.futures
 import threading
 import os
-import requests
 import sys
-import hmac
-import hashlib
-import time
 
 VERIFY_API = "https://xanaf-legacy-authorised-checker.vercel.app/verify"
 SECRET_KEY = "XANAF_SUPER_SECRET_KEY"
@@ -56,7 +52,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__)
 
-# ---------------- KEYS ---------------- #
+# ---------------- KEYS (UPDATE THESE FOR OB53 IF IT FAILS) ---------------- #
 hex_key = "32656534343831396539623435393838343531343130363762323831363231383734643064356437616639643866376530306331653534373135623764316533"
 key = bytes.fromhex(hex_key)
 
@@ -90,7 +86,6 @@ thread_local = threading.local()
 def get_session():
     if not hasattr(thread_local, "session"):
         thread_local.session = requests.Session()
-        # Add retry mechanism
         from requests.adapters import HTTPAdapter
         from urllib3.util.retry import Retry
         
@@ -140,6 +135,7 @@ def CrEaTe_ProTo(fields):
 # ---------------- AES ENCRYPTION ---------------- #
 def E_AEs(Pc):
     Z = bytes.fromhex(Pc)
+    # UPDATE THESE KEYS FOR OB53 LATER
     key_bytes = bytes([89,103,38,116,99,37,68,69,117,104,54,37,90,99,94,56])
     iv = bytes([54,111,121,90,68,114,50,50,69,51,121,99,104,106,77,37])
     K = AES.new(key_bytes, AES.MODE_CBC, iv)
@@ -148,6 +144,7 @@ def E_AEs(Pc):
 
 def encrypt_api(plain_text):
     plain_text = bytes.fromhex(plain_text)
+    # UPDATE THESE KEYS FOR OB53 LATER
     key_bytes = bytes([89,103,38,116,99,37,68,69,117,104,54,37,90,99,94,56])
     iv = bytes([54,111,121,90,68,114,50,50,69,51,121,99,104,106,77,37])
     cipher = AES.new(key_bytes, AES.MODE_CBC, iv)
@@ -179,13 +176,9 @@ def create_single_account(args):
     return None
 
 def create_acc(region, name_prefix):
-    """
-    Complete account creation flow - exactly like gen.py
-    """
     password = generate_custom_password()
     session = get_session()
     
-    # Step 1: Guest Register
     data = f"password={password}&client_type=2&source=2&app_id=100067"
     message = data.encode('utf-8')
     signature = hmac.new(key, message, hashlib.sha256).hexdigest()
@@ -210,7 +203,6 @@ def create_acc(region, name_prefix):
         return None
 
 def token(uid, password, region, name_prefix):
-    # Step 2: Token Grant
     session = get_session()
     url = "https://100067.connect.garena.com/oauth/guest/token/grant"
     headers = {
@@ -268,7 +260,6 @@ def to_unicode_escaped(s):
 
 # ---------------- Major register -> login flow ---------------- #
 def Major_Regsiter(access_token, open_id, field, uid, password, region, name_prefix):
-    # Step 3: Major Register
     session = get_session()
     url = "https://loginbp.ggblueshark.com/MajorRegister"
     internal_name = generate_random_name(name_prefix)
@@ -283,7 +274,7 @@ def Major_Regsiter(access_token, open_id, field, uid, password, region, name_pre
         "ReleaseVersion": "OB53",
         "User-Agent": "Dalvik/2.1.0 (Linux; U; Android 9; ASUS_I005DA Build/PI)",
         "X-GA": "v1 1",
-        "X-Unity-Version": "2018.4.11f1"
+        "X-Unity-Version": "2018.4.11f1" # UPDATE IF OB53 REQUIRES NEWER UNITY
     }
 
     payload = {
@@ -306,7 +297,6 @@ def Major_Regsiter(access_token, open_id, field, uid, password, region, name_pre
         body = bytes.fromhex(payload_enc)
         response = session.post(url, headers=headers, data=body, verify=False, timeout=30)
         
-        # Step 4: Proceed to Login - EXACTLY like gen.py
         return login(uid, password, access_token, open_id, response.content.hex(), response.status_code, internal_name, region)
     except Exception as e:
         return None
@@ -320,7 +310,7 @@ def chooseregion(data_bytes, jwt_token):
         'Content-Type': "application/x-www-form-urlencoded",
         'Expect': "100-continue",
         'Authorization': f"Bearer {jwt_token}",
-        'X-Unity-Version': "2018.4.11f1",
+        'X-Unity-Version': "2018.4.11f1", # UPDATE IF OB53 REQUIRES NEWER UNITY
         'X-GA': "v1 1",
         'ReleaseVersion': "OB53"
     }
@@ -332,7 +322,6 @@ def chooseregion(data_bytes, jwt_token):
         return None
 
 def login(uid, password, access_token, open_id, response_hex, status_code, name, region):
-    # Step 4: Major Login - EXACTLY like gen.py
     lang = get_region(region)
     if not lang:
         lang = "en"
@@ -350,8 +339,9 @@ def login(uid, password, access_token, open_id, response_hex, status_code, name,
         "X-Unity-Version": "2018.4.11f1"
     }
 
-    # This payload is reused from original gen.py
-    payload = b'\x1a\x132025-08-30 05:19:21"\tfree fire(\x01:\x081.114.13B2Android OS 9 / API-28 (PI/rel.cjw.20220518.114133)J\x08HandheldR\nATM MobilsZ\x04WIFI`\xb6\nh\xee\x05r\x03300z\x1fARMv7 VFPv3 NEON VMH | 2400 | 2\x80\x01\xc9\x0f\x8a\x01\x0fAdreno (TM) 640\x92\x01\rOpenGL ES 3.2\x9a\x01+Google|dfa4ab4b-9dc4-454e-8065-e70c733fa53f\xa2\x01\x0e105.235.139.91\xaa\x01\x02' + lang_b + b'\xb2\x01 1d8ec0240ede109973f3321b9354b44d\xba\x01\x014\xc2\x01\x08Handheld\xca\x01\x10Asus ASUS_I005DA\xea\x01@afcfbf13334be42036e4f742c80b956344bed760ac91b3aff9b607a610ab4390\xf0\x01\x01\xca\x02\nATM Mobils\xd2\x02\x04WIFI\xca\x03 7428b253defc164018c604a1ebbfebdf\xe0\x03\xa8\x81\x02\xe8\x03\xf6\xe5\x01\xf0\x03\xaf\x13\xf8\x03\x84\x07\x80\x04\xe7\xf0\x01\x88\x04\xa8\x81\x02\x90\x04\xe7\xf0\x01\x98\x04\xa8\x81\x02\xc8\x04\x01\xd2\x04=/data/app/com.dts.freefireth-PdeDnOilCSFn37p1AH_FLg==/lib/arm\xe0\x04\x01\xea\x04_2087f61c19f57f2af4e7feff0b24d9d9|/data/app/com.dts.freefireth-PdeDnOilCSFn37p1AH_FLg==/base.apk\xf0\x04\x03\xf8\x04\x01\x8a\x05\x0232\x9a\x05\n2019118692\xb2\x05\tOpenGLES2\xb8\x05\xff\x7f\xc0\x05\x04\xe0\x05\xf3F\xea\x05\x07android\xf2\x05pKqsHT5ZLWrYljNb5Vqh//yFRlaPHSO9NWSQsVvOmdhEEn7W+VHNUK+Q+fduA3ptNrGB0Ll0LRz3WW0jOwesLj6aiU7sZ40p8BfUE/FI/jzSTwRe2\xf8\x05\xfb\xe4\x06\x88\x06\x01\x90\x06\x01\x9a\x06\x014\xa2\x06\x014\xb2\x06"GQ@O\x00\x0e^\x00D\x06UA\x0ePM\r\x13hZ\x07T\x06\x0cm\\V\x0ejYV;\x0bU5'
+    # UPDATED: Dynamic Timestamp instead of hardcoded 2025 date
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    payload = b'\x1a\x13' + now_str.encode() + b'"\tfree fire(\x01:\x081.114.13B2Android OS 9 / API-28 (PI/rel.cjw.20220518.114133)J\x08HandheldR\nATM MobilsZ\x04WIFI`\xb6\nh\xee\x05r\x03300z\x1fARMv7 VFPv3 NEON VMH | 2400 | 2\x80\x01\xc9\x0f\x8a\x01\x0fAdreno (TM) 640\x92\x01\rOpenGL ES 3.2\x9a\x01+Google|dfa4ab4b-9dc4-454e-8065-e70c733fa53f\xa2\x01\x0e105.235.139.91\xaa\x01\x02' + lang_b + b'\xb2\x01 1d8ec0240ede109973f3321b9354b44d\xba\x01\x014\xc2\x01\x08Handheld\xca\x01\x10Asus ASUS_I005DA\xea\x01@afcfbf13334be42036e4f742c80b956344bed760ac91b3aff9b607a610ab4390\xf0\x01\x01\xca\x02\nATM Mobils\xd2\x02\x04WIFI\xca\x03 7428b253defc164018c604a1ebbfebdf\xe0\x03\xa8\x81\x02\xe8\x03\xf6\xe5\x01\xf0\x03\xaf\x13\xf8\x03\x84\x07\x80\x04\xe7\xf0\x01\x88\x04\xa8\x81\x02\x90\x04\xe7\xf0\x01\x98\x04\xa8\x81\x02\xc8\x04\x01\xd2\x04=/data/app/com.dts.freefireth-PdeDnOilCSFn37p1AH_FLg==/lib/arm\xe0\x04\x01\xea\x04_2087f61c19f57f2af4e7feff0b24d9d9|/data/app/com.dts.freefireth-PdeDnOilCSFn37p1AH_FLg==/base.apk\xf0\x04\x03\xf8\x04\x01\x8a\x05\x0232\x9a\x05\n2019118692\xb2\x05\tOpenGLES2\xb8\x05\xff\x7f\xc0\x05\x04\xe0\x05\xf3F\xea\x05\x07android\xf2\x05pKqsHT5ZLWrYljNb5Vqh//yFRlaPHSO9NWSQsVvOmdhEEn7W+VHNUK+Q+fduA3ptNrGB0Ll0LRz3WW0jOwesLj6aiU7sZ40p8BfUE/FI/jzSTwRe2\xf8\x05\xfb\xe4\x06\x88\x06\x01\x90\x06\x01\x9a\x06\x014\xa2\x06\x014\xb2\x06"GQ@O\x00\x0e^\x00D\x06UA\x0ePM\r\x13hZ\x07T\x06\x0cm\\V\x0ejYV;\x0bU5'
     data = payload
     try:
         data = data.replace(b'afcfbf13334be42036e4f742c80b956344bed760ac91b3aff9b607a610ab4390', access_token.encode())
@@ -373,19 +363,15 @@ def login(uid, password, access_token, open_id, response_hex, status_code, name,
     except Exception:
         return None
 
-    # If login successful, extract JWT token and proceed to GetLoginData
     if RESPONSE.status_code == 200:
-        # If text length small, it's probably an error
         if len(RESPONSE.text) < 10:
             return None
 
-        # Try to use protobuf parser path for non-ar/en languages
         if lang.lower() not in ["ar", "en"]:
             json_result = get_available_room(RESPONSE.content.hex())
             parsed_data = json.loads(json_result) if json_result else {}
             BASE64_TOKEN = parsed_data.get('8', {}).get('data')
             if BASE64_TOKEN:
-                # region mapping for cis
                 if region.lower() == "ru":
                     region = "RU"
                 fields = {1: region}
@@ -394,12 +380,10 @@ def login(uid, password, access_token, open_id, response_hex, status_code, name,
                 if r == 200:
                     return login_server(uid, password, access_token, open_id, RESPONSE.content.hex(), RESPONSE.status_code, name, region)
         
-        # Try extract embedded JWT token substring for typical responses
         try:
             start_idx = RESPONSE.text.find("eyJhbGci")
             if start_idx != -1:
                 BASE64_TOKEN = RESPONSE.text[start_idx:-1]
-                # trim to expected length (original did a cut)
                 second_dot_index = BASE64_TOKEN.find(".", BASE64_TOKEN.find(".") + 1)
                 time.sleep(0.2)
                 BASE64_TOKEN = BASE64_TOKEN[:second_dot_index+44] if second_dot_index != -1 else BASE64_TOKEN
@@ -428,7 +412,9 @@ def login_server(uid, password, access_token, open_id, response, status_code, na
         "X-Unity-Version": "2018.4.11f1"
     }
 
-    payload = b'\x1a\x132025-08-30 05:19:21"\tfree fire(\x01:\x081.114.13B2Android OS 9 / API-28 (PI/rel.cjw.20220518.114133)J\x08HandheldR\nATM MobilsZ\x04WIFI`\xb6\nh\xee\x05r\x03300z\x1fARMv7 VFPv3 NEON VMH | 2400 | 2\x80\x01\xc9\x0f\x8a\x01\x0fAdreno (TM) 640\x92\x01\rOpenGL ES 3.2\x9a\x01+Google|dfa4ab4b-9dc4-454e-8065-e70c733fa53f\xa2\x01\x0e105.235.139.91\xaa\x01\x02' + lang_b + b'\xb2\x01 1d8ec0240ede109973f3321b9354b44d\xba\x01\x014\xc2\x01\x08Handheld\xca\x01\x10Asus ASUS_I005DA\xea\x01@afcfbf13334be42036e4f742c80b956344bed760ac91b3aff9b607a610ab4390\xf0\x01\x01\xca\x02\nATM Mobils\xd2\x02\x04WIFI\xca\x03 7428b253defc164018c604a1ebbfebdf\xe0\x03\xa8\x81\x02\xe8\x03\xf6\xe5\x01\xf0\x03\xaf\x13\xf8\x03\x84\x07\x80\x04\xe7\xf0\x01\x88\x04\xa8\x81\x02\x90\x04\xe7\xf0\x01\x98\x04\xa8\x81\x02\xc8\x04\x01\xd2\x04=/data/app/com.dts.freefireth-PdeDnOilCSFn37p1AH_FLg==/lib/arm\xe0\x04\x01\xea\x04_2087f61c19f57f2af4e7feff0b24d9d9|/data/app/com.dts.freefireth-PdeDnOilCSFn37p1AH_FLg==/base.apk\xf0\x04\x03\xf8\x04\x01\x8a\x05\x0232\x9a\x05\n2019118692\xb2\x05\tOpenGLES2\xb8\x05\xff\x7f\xc0\x05\x04\xe0\x05\xf3F\xea\x05\x07android\xf2\x05pKqsHT5ZLWrYljNb5Vqh//yFRlaPHSO9NWSQsVvOmdhEEn7W+VHNUK+Q+fduA3ptNrGB0Ll0LRz3WW0jOwesLj6aiU7sZ40p8BfUE/FI/jzSTwRe2\xf8\x05\xfb\xe4\x06\x88\x06\x01\x90\x06\x01\x9a\x06\x014\xa2\x06\x014\xb2\x06"GQ@O\x00\x0e^\x00D\x06UA\x0ePM\r\x13hZ\x07T\x06\x0cm\\V\x0ejYV;\x0bU5'
+    # UPDATED: Dynamic Timestamp here too
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    payload = b'\x1a\x13' + now_str.encode() + b'"\tfree fire(\x01:\x081.114.13B2Android OS 9 / API-28 (PI/rel.cjw.20220518.114133)J\x08HandheldR\nATM MobilsZ\x04WIFI`\xb6\nh\xee\x05r\x03300z\x1fARMv7 VFPv3 NEON VMH | 2400 | 2\x80\x01\xc9\x0f\x8a\x01\x0fAdreno (TM) 640\x92\x01\rOpenGL ES 3.2\x9a\x01+Google|dfa4ab4b-9dc4-454e-8065-e70c733fa53f\xa2\x01\x0e105.235.139.91\xaa\x01\x02' + lang_b + b'\xb2\x01 1d8ec0240ede109973f3321b9354b44d\xba\x01\x014\xc2\x01\x08Handheld\xca\x01\x10Asus ASUS_I005DA\xea\x01@afcfbf13334be42036e4f742c80b956344bed760ac91b3aff9b607a610ab4390\xf0\x01\x01\xca\x02\nATM Mobils\xd2\x02\x04WIFI\xca\x03 7428b253defc164018c604a1ebbfebdf\xe0\x03\xa8\x81\x02\xe8\x03\xf6\xe5\x01\xf0\x03\xaf\x13\xf8\x03\x84\x07\x80\x04\xe7\xf0\x01\x88\x04\xa8\x81\x02\x90\x04\xe7\xf0\x01\x98\x04\xa8\x81\x02\xc8\x04\x01\xd2\x04=/data/app/com.dts.freefireth-PdeDnOilCSFn37p1AH_FLg==/lib/arm\xe0\x04\x01\xea\x04_2087f61c19f57f2af4e7feff0b24d9d9|/data/app/com.dts.freefireth-PdeDnOilCSFn37p1AH_FLg==/base.apk\xf0\x04\x03\xf8\x04\x01\x8a\x05\x0232\x9a\x05\n2019118692\xb2\x05\tOpenGLES2\xb8\x05\xff\x7f\xc0\x05\x04\xe0\x05\xf3F\xea\x05\x07android\xf2\x05pKqsHT5ZLWrYljNb5Vqh//yFRlaPHSO9NWSQsVvOmdhEEn7W+VHNUK+Q+fduA3ptNrGB0Ll0LRz3WW0jOwesLj6aiU7sZ40p8BfUE/FI/jzSTwRe2\xf8\x05\xfb\xe4\x06\x88\x06\x01\x90\x06\x01\x9a\x06\x014\xa2\x06\x014\xb2\x06"GQ@O\x00\x0e^\x00D\x06UA\x0ePM\r\x13hZ\x07T\x06\x0cm\\V\x0ejYV;\x0bU5'
     data = payload
     try:
         data = data.replace(b'afcfbf13334be42036e4f742c80b956344bed760ac91b3aff9b607a610ab4390', access_token.encode())
@@ -528,7 +514,7 @@ def GET_LOGIN_DATA(JWT_TOKEN, PAYLOAD, region):
             time.sleep(2)
     return None
 
-# ---------------- GET_PAYLOAD_BY_DATA (decode JWT payload & craft final payload) ---------------- #
+# ---------------- GET_PAYLOAD_BY_DATA ---------------- #
 def GET_PAYLOAD_BY_DATA(JWT_TOKEN, NEW_ACCESS_TOKEN, date, response, status_code, name, uid, password, region):
     try:
         token_payload_base64 = JWT_TOKEN.split('.')[1]
@@ -537,11 +523,12 @@ def GET_PAYLOAD_BY_DATA(JWT_TOKEN, NEW_ACCESS_TOKEN, date, response, status_code
         decoded_payload = json.loads(decoded_payload)
         NEW_EXTERNAL_ID = decoded_payload.get('external_id', '')
         SIGNATURE_MD5 = decoded_payload.get('signature_md5', '')
-        now = datetime.now()
-        now = str(now)[:len(str(now))-7]
+        
+        # UPDATED: Dynamic Date Format fixing old 2023 hardcode
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         PAYLOAD = b':\x071.111.2\xaa\x01\x02ar\xb2\x01 55ed759fcf94f85813e57b2ec8492f5c\xba\x01\x014\xea\x01@6fb7fdef8658fd03174ed551e82b71b21db8187fa0612c8eaf1b63aa687f1eae\x9a\x06\x014\xa2\x06\x014'
-        PAYLOAD = PAYLOAD.replace(b"2023-12-24 04:21:34", str(now).encode())
+        PAYLOAD = PAYLOAD.replace(b"2023-12-24 04:21:34", now.encode())
         PAYLOAD = PAYLOAD.replace(b"15f5ba1de5234a2e73cc65b6f34ce4b299db1af616dd1dd8a6f31b147230e5b6", NEW_ACCESS_TOKEN.encode("UTF-8"))
         PAYLOAD = PAYLOAD.replace(b"4666ecda0003f1809655a7a8698573d0", NEW_EXTERNAL_ID.encode("UTF-8"))
         PAYLOAD = PAYLOAD.replace(b"7428b253defc164018c604a1ebbfebdf", SIGNATURE_MD5.encode("UTF-8"))
@@ -550,7 +537,6 @@ def GET_PAYLOAD_BY_DATA(JWT_TOKEN, NEW_ACCESS_TOKEN, date, response, status_code
         PAYLOAD = bytes.fromhex(PAYLOAD)
         data = GET_LOGIN_DATA(JWT_TOKEN, PAYLOAD, region)
         
-        # Return final account data with full login status - EXACTLY like gen.py
         return {
             "uid": uid,
             "password": password,
@@ -558,7 +544,6 @@ def GET_PAYLOAD_BY_DATA(JWT_TOKEN, NEW_ACCESS_TOKEN, date, response, status_code
             "region": region,
             "status": "full_login",
             "stage": "complete",
-            
         }
     except Exception as e:
         return None
@@ -566,32 +551,23 @@ def GET_PAYLOAD_BY_DATA(JWT_TOKEN, NEW_ACCESS_TOKEN, date, response, status_code
 # ---------------- FLASK API ---------------- #
 @app.route('/gen', methods=['GET'])
 def generate_accounts():
-    # Get parameters
     name = request.args.get('name', 'HUSTLER')
     count = request.args.get('count', '1')
     region = request.args.get('region', 'IND')
     
-    # Validate and convert count
     try:
         count = int(count)
-        if count > 15:
-            count = 15
-        if count < 1:
-            count = 1
+        if count > 15: count = 15
+        if count < 1: count = 1
     except:
         count = 1
     
-    # Validate region
     region = region.upper()
     if region not in REGION_LANG:
         region = "IND"
     
     print(f"Starting creation of {count} FULL LOGIN accounts for region {region} with name prefix {name}")
-    
-    # Use thread pool with limited workers
-    max_workers = 5  # Reduced for stability
-    
-    # Create accounts with retry mechanism until we get exactly the requested count of FULL LOGIN accounts
+    max_workers = 5
     results = []
     attempts = 0
     max_total_attempts = count * 10
@@ -600,11 +576,7 @@ def generate_accounts():
         while len(results) < count and attempts < max_total_attempts:
             needed = count - len(results)
             current_batch = min(needed, max_workers)
-            
-            futures = []
-            for i in range(current_batch):
-                future = executor.submit(create_single_account, (name, region))
-                futures.append(future)
+            futures = [executor.submit(create_single_account, (name, region)) for i in range(current_batch)]
             
             for future in concurrent.futures.as_completed(futures):
                 attempts += 1
@@ -612,14 +584,11 @@ def generate_accounts():
                 if result and result.get('status') == "full_login":
                     results.append(result)
                     print(f"Successfully created FULL LOGIN account {len(results)}/{count}: UID {result['uid']}")
-                
-                if len(results) >= count:
-                    break
+                if len(results) >= count: break
             
             if len(results) < count:
-                time.sleep(2)  # Increased delay for stability
+                time.sleep(2)
     
-    # Return response
     response_data = {
         "success": True,
         "total_requested": count,
@@ -649,13 +618,9 @@ def health():
 def application(environ, start_response):
     return app(environ, start_response)
 
-# For local development
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=3000, debug=False)
 
-
-
-# ---------------- MODIFICATIONS: API FRIENDLY EXTRAS ---------------- #
 try:
     from flask_cors import CORS
     CORS(app)
@@ -664,38 +629,24 @@ except Exception:
 
 @app.route('/api/gen', methods=['POST'])
 def generate_accounts_post():
-    """
-    JSON Body:
-    {
-        "name": "HUSTLER",
-        "count": 1,
-        "region": "IND"
-    }
-    """
     data = request.get_json(silent=True) or {}
     name = data.get('name', 'HUSTLER')
     count = data.get('count', 1)
     region = data.get('region', 'IND')
 
-    # Validate and convert count
     try:
         count = int(count)
-        if count > 15:
-            count = 15
-        if count < 1:
-            count = 1
+        if count > 15: count = 15
+        if count < 1: count = 1
     except:
         count = 1
 
-    # Validate region
     region = str(region).upper()
     if region not in REGION_LANG:
         region = "IND"
 
     print(f"[POST] Starting creation of {count} FULL LOGIN accounts for region {region} with name prefix {name}")
-
     max_workers = 5
-
     results = []
     attempts = 0
     max_total_attempts = count * 10
@@ -704,11 +655,7 @@ def generate_accounts_post():
         while len(results) < count and attempts < max_total_attempts:
             needed = count - len(results)
             current_batch = min(needed, max_workers)
-
-            futures = []
-            for i in range(current_batch):
-                future = executor.submit(create_single_account, (name, region))
-                futures.append(future)
+            futures = [executor.submit(create_single_account, (name, region)) for i in range(current_batch)]
 
             for future in concurrent.futures.as_completed(futures):
                 attempts += 1
@@ -716,10 +663,7 @@ def generate_accounts_post():
                 if result and result.get('status') == "full_login":
                     results.append(result)
                     print(f"[POST] Successfully created FULL LOGIN account {len(results)}/{count}: UID {result['uid']}")
-
-                if len(results) >= count:
-                    break
-
+                if len(results) >= count: break
             if len(results) < count:
                 time.sleep(2)
 
@@ -731,8 +675,6 @@ def generate_accounts_post():
         "attempts_made": attempts,
         "method": "POST"
     }
-
-    print(f"[POST] Completed: Created {len(results)} FULL LOGIN accounts out of {count} requested")
     return jsonify(response_data)
 
 @app.route('/version')
